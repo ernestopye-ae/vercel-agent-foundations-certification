@@ -9,4 +9,11 @@
  * Workshop docs: https://agent-foundations-certification.vercel.app/docs/chat-agent
  */
 
-export {};
+import { ToolLoopAgent } from "ai";
+
+// question: is it possible to tweak the reflection process?
+
+export const shoppingAgent = new ToolLoopAgent({ 
+    model: "anthropic/claude-sonnet-4.6",
+    instructions: "You are a friendly shopping assistant for the Vercel swag store."
+});
