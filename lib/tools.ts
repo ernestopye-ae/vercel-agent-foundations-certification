@@ -1,9 +1,8 @@
-import {tool} from "ai";
-import {z} from "zod";
-import {
-    ApiRequestError, createReturn, getCategories, getOrder, getProducts, preauthorizeRefund, notifyReturnInProcess,
-    getProductById
-} from "@/lib/api";
+import { tool } from "ai";
+import { z } from "zod";
+import { ApiRequestError, createReturn, getCategories, getOrder, getProductById, getProductStock, getProducts, preauthorizeRefund, notifyReturnInProcess } from "@/lib/api";
+import { start } from "workflow/api";
+import { returnFlow } from "./workflows/return-flow";
 
 export const searchProducts = tool({
     description: `Search the Vercel swag store product catalog. Use this whenever the user asks about products, what the store sells, or wants recommendations. Optionally narrow results to a single category.`,
@@ -21,7 +20,8 @@ export const searchProducts = tool({
                 `Optional category slug to filter results. Only set this when the user clearly wants a specific category. Use the getAllCategories tool to get all valid categories.`,
             ),
     }),
-    execute: async ({query, category}) => {
+    execute: async ({ query, category }) => {
+        "use step";
         try {
             const products = await getProducts({
                 search: query,
@@ -44,7 +44,7 @@ export const searchProducts = tool({
         } catch (err) {
             const message =
                 err instanceof ApiRequestError ? err.message : "Unknown error";
-            return {count: 0, products: [], error: message};
+            return { count: 0, products: [], error: message };
         }
     },
 });
@@ -53,6 +53,7 @@ export const getAllCategories = tool({
     description: `List every product category available in the Vercel swag store, along with the number of products in each. Use this when the user asks what categories exist, what kinds of products are sold, or wants to browse the store at a high level.`,
     inputSchema: z.object({}),
     execute: async () => {
+        "use step";
         try {
             const categories = await getCategories();
             return {
@@ -66,7 +67,7 @@ export const getAllCategories = tool({
         } catch (err) {
             const message =
                 err instanceof ApiRequestError ? err.message : "Unknown error";
-            return {count: 0, categories: [], error: message};
+            return { count: 0, categories: [], error: message };
         }
     },
 });
@@ -83,53 +84,48 @@ export const returnOrder = tool({
             .max(500)
             .describe("Why the user is returning the order."),
     }),
-    execute: async ({orderId, reason}) => {
-        try {
-            const order = await getOrder(orderId);
-            await notifyReturnInProcess(orderId);
-            await preauthorizeRefund(orderId);
-            const filed = await createReturn({
-                orderId: order.id,
-                items: order.items.map((i) => ({
-                    productId: i.productId,
-                    quantity: i.quantity,
-                })),
-                reason,
-            });
-            return {returnId: filed.id, status: filed.status};
-        } catch (err) {
-            const message =
-                err instanceof ApiRequestError ? err.message : "Unknown error";
-            return {error: message};
-        }
+    execute: async ({ orderId, reason }) => {
+        "use step";
+        const run = await start(returnFlow, [orderId, reason]);
+        return { runId: run.runId, message: `Return request received for order ${orderId}.` };
     },
 });
 
 export const getProductDetails = tool({
-    description: `Returns individual product details beyond what's available in product search, to provide more detailed information about products to users. When available, render this as closely to a product cart as possible, including the image, pricing, etc.`,
+    description: `Fetch the full details for a single product by its ID or slug, including every image, the full description, price, tags, and live stock levels. Use this when the user asks about a specific item (e.g. "tell me more about the black hoodie") — prefer it over searchProducts once you know which product they mean, since searchProducts only returns a summary.`,
     inputSchema: z.object({
-        idOrSlug: z.string().describe("The unique product ID or the URL slug.")
+        productId: z
+            .string()
+            .describe(
+                "The product's ID or slug, as returned by searchProducts (the id or slug field).",
+            ),
     }),
-    execute: async ({idOrSlug}) => {
-        console.log("[getProductDetails]", {idOrSlug});
+    execute: async ({ productId }) => {
+        "use step";
         try {
-            const product = await getProductById(idOrSlug);
-            return product;
-            // return {
-            //     description: product.description,
-            //     category: product.category,
-            //     slug: product.slug,
-            //     name: product.name,
-            //     currency: product.currency,
-            //     price: product.price,
-            //     featured: product.featured,
-            //     images: product.images,
-            //     tags: product.tags,
-            // }; // excluded id on purpose. not sure that we should show that?
+            const [product, stock] = await Promise.all([
+                getProductById(productId),
+                getProductStock(productId),
+            ]);
+            return {
+                id: product.id,
+                name: product.name,
+                slug: product.slug,
+                description: product.description,
+                price: product.price,
+                currency: product.currency,
+                category: product.category,
+                images: product.images,
+                tags: product.tags,
+                featured: product.featured,
+                stock: stock.stock,
+                inStock: stock.inStock,
+                lowStock: stock.lowStock,
+            };
         } catch (err) {
             const message =
                 err instanceof ApiRequestError ? err.message : "Unknown error";
-            return {count: 0, categories: [], error: message};
+            return { error: message };
         }
     },
 });
