@@ -1,9 +1,9 @@
-import { WorkflowAgent } from "@ai-sdk/workflow";
+import { DurableAgent } from "@workflow/ai/agent";
 import { getWritable } from "workflow";
 import {
     convertToModelMessages,
-    type Experimental_LanguageModelStreamPart,
     type UIMessage,
+    type UIMessageChunk,
 } from "ai";
 import { searchProducts, getAllCategories, returnOrder, getProductDetails } from "@/lib/tools";
 
@@ -12,7 +12,7 @@ export async function chatFlow(messages: UIMessage[]) {
 
     const modelMessages = await convertToModelMessages(messages);
 
-    const agent = new WorkflowAgent({
+    const agent = new DurableAgent({
         model: "anthropic/claude-haiku-4.5",
         instructions: `You are a helpful assistant for the Vercel swag store.
     When the user asks about products, availability, or recommendations, use the searchProducts tool to look up real catalog data before answering.
@@ -27,6 +27,6 @@ export async function chatFlow(messages: UIMessage[]) {
 
     await agent.stream({
         messages: modelMessages,
-        writable: getWritable<Experimental_LanguageModelStreamPart>(),
+        writable: getWritable<UIMessageChunk>(),
     });
 }

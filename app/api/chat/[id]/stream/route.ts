@@ -6,7 +6,6 @@
  * Workshop docs: https://agent-foundations-certification.vercel.app/docs/workflows
  */
 
-import { createModelCallToUIChunkTransform } from "@ai-sdk/workflow";
 import { createUIMessageStreamResponse } from "ai";
 import { getRun } from "workflow/api";
 
@@ -24,7 +23,7 @@ export async function GET(
   const tailIndex = await readable.getTailIndex();
 
   return createUIMessageStreamResponse({
-    stream: readable.pipeThrough(createModelCallToUIChunkTransform()),
+    stream: readable,
     headers: {
       "x-workflow-stream-tail-index": String(tailIndex),
     },
