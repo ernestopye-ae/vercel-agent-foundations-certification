@@ -106,7 +106,7 @@ export const returnOrder = tool({
 });
 
 export const getProductDetails = tool({
-    description: `Returns individual product details beyond what's available in product search, to provide more detailed information about products to users.`,
+    description: `Returns individual product details beyond what's available in product search, to provide more detailed information about products to users. When available, render this as closely to a product cart as possible, including the image, pricing, etc.`,
     inputSchema: z.object({
         idOrSlug: z.string().describe("The unique product ID or the URL slug.")
     }),
@@ -124,7 +124,7 @@ export const getProductDetails = tool({
                 featured: product.featured,
                 images: product.images,
                 tags: product.tags,
-            }; // excluded id on purpose.
+            }; // excluded id on purpose. not sure that we should show that?
         } catch (err) {
             const message =
                 err instanceof ApiRequestError ? err.message : "Unknown error";
