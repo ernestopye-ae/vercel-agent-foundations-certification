@@ -114,17 +114,18 @@ export const getProductDetails = tool({
         console.log("[getProductDetails]", {idOrSlug});
         try {
             const product = await getProductById(idOrSlug);
-            return {
-                description: product.description,
-                category: product.category,
-                slug: product.slug,
-                name: product.name,
-                currency: product.currency,
-                price: product.price,
-                featured: product.featured,
-                images: product.images,
-                tags: product.tags,
-            }; // excluded id on purpose. not sure that we should show that?
+            return product;
+            // return {
+            //     description: product.description,
+            //     category: product.category,
+            //     slug: product.slug,
+            //     name: product.name,
+            //     currency: product.currency,
+            //     price: product.price,
+            //     featured: product.featured,
+            //     images: product.images,
+            //     tags: product.tags,
+            // }; // excluded id on purpose. not sure that we should show that?
         } catch (err) {
             const message =
                 err instanceof ApiRequestError ? err.message : "Unknown error";
